@@ -42,6 +42,8 @@
  */
 
 
+#define DEFINE_CONFIG_DATA 1
+
 #include "uf2.h"
 
 #include "lib/usb_msc/sbc_protocol.h"
@@ -82,7 +84,7 @@ void msc_reset(void) {
 //! Structure to receive a CBW packet
 static struct usb_msc_cbw udi_msc_cbw;
 //! Structure to send a CSW packet
-static struct usb_msc_csw udi_msc_csw = {.dCSWSignature = CPU_TO_BE32(USB_CSW_SIGNATURE)};
+static struct usb_msc_csw udi_msc_csw = {.dCSWSignature = cpu_to_le32(USB_CSW_SIGNATURE)};
 //! Structure with current SCSI sense data
 static struct scsi_request_sense_data udi_msc_sense;
 
@@ -279,7 +281,7 @@ bool try_read_cbw(struct usb_msc_cbw *cbw, uint8_t ep, PacketBuffer *handoverCac
 #if USE_MSC_CHECKS
     // Check CBW integrity:
     // transfer status/CBW length/CBW signature
-    if ((sizeof(*cbw) != nb_received) || (cbw->dCBWSignature != CPU_TO_BE32(USB_CBW_SIGNATURE))) {
+    if ((sizeof(*cbw) != nb_received) || (cbw->dCBWSignature != cpu_to_le32(USB_CBW_SIGNATURE))) {
         if (handoverCache)
             resetIntoBootloader();
         // (5.2.1) Devices receiving a CBW with an invalid signature should
@@ -781,7 +783,7 @@ static void handover_flash(UF2_HandoverArgs *handover, PacketBuffer *handoverCac
 static void process_handover_initial(UF2_HandoverArgs *handover, PacketBuffer *handoverCache,
                                      WriteState *state) {
     struct usb_msc_csw csw = {.dCSWTag = handover->cbw_tag,
-                              .dCSWSignature = CPU_TO_BE32(USB_CSW_SIGNATURE),
+                              .dCSWSignature = cpu_to_le32(USB_CSW_SIGNATURE),
                               .bCSWStatus = USB_CSW_STATUS_PASS,
                               .dCSWDataResidue = 0};
     // write out the block passed from user space
@@ -805,7 +807,7 @@ static void process_handover(UF2_HandoverArgs *handover, PacketBuffer *handoverC
     }
 
     struct usb_msc_csw csw = {.dCSWTag = cbw.dCBWTag,
-                              .dCSWSignature = CPU_TO_BE32(USB_CSW_SIGNATURE),
+                              .dCSWSignature = cpu_to_le32(USB_CSW_SIGNATURE),
                               .bCSWStatus = USB_CSW_STATUS_PASS,
                               .dCSWDataResidue = le32_to_cpu(cbw.dCBWDataTransferLength)};
 
@@ -864,6 +866,9 @@ static void handover(UF2_HandoverArgs *args) {
 #endif
 
 __attribute__((section(".binfo"))) __attribute__((__used__)) const UF2_BInfo binfo = {
+#ifdef HAS_CONFIG_DATA
+    .config_data = config_data,
+#endif
 #if USE_MSC_HANDOVER
     .handoverMSC = handover,
 #endif
